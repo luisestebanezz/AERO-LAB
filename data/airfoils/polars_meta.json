@@ -1,0 +1,206 @@
+{
+ "neuralfoil_version": "0.3.3",
+ "aerosandbox_version": "4.2.10",
+ "model_size": "large",
+ "n_crit": 9.0,
+ "airfoils": {
+  "sd7032": {
+   "family": "conventional",
+   "thickness_ratio": 0.0997,
+   "why": "Selig-Donovan low-Reynolds general purpose; measured polars exist (UIUC)",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "sd7037": {
+   "family": "conventional",
+   "thickness_ratio": 0.0921,
+   "why": "Selig-Donovan low-drag sailplane section; measured polars exist (UIUC)",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "sd7062": {
+   "family": "conventional",
+   "thickness_ratio": 0.14,
+   "why": "Thicker (14 %) high-lift section; room for the spar",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "e387": {
+   "family": "conventional",
+   "thickness_ratio": 0.0907,
+   "why": "Eppler 387: the classic low-Reynolds reference; measured polars exist",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "naca4412": {
+   "family": "conventional",
+   "thickness_ratio": 0.1202,
+   "why": "Classic cambered section (4 % camber at 40 %, 12 % thick); tolerant stall",
+   "series": "NACA 4-digit"
+  },
+  "ag35": {
+   "family": "conventional",
+   "thickness_ratio": 0.0872,
+   "why": "Drela AG-series thin section for light wings",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "s1223": {
+   "family": "conventional",
+   "thickness_ratio": 0.1214,
+   "why": "Very high lift at low Reynolds number; for slow launch and recovery",
+   "series": "Low-Reynolds (Selig, Eppler, Drela)"
+  },
+  "mh45": {
+   "family": "reflex",
+   "thickness_ratio": 0.0985,
+   "why": "Hepperle reflex section for tailless aircraft",
+   "series": "Reflex (tailless)"
+  },
+  "mh60": {
+   "family": "reflex",
+   "thickness_ratio": 0.1008,
+   "why": "Hepperle reflex section, 10 % thick; no measured polars found",
+   "series": "Reflex (tailless)"
+  },
+  "s5010": {
+   "family": "reflex",
+   "thickness_ratio": 0.0983,
+   "why": "Selig reflex section for flying wings",
+   "series": "Reflex (tailless)"
+  },
+  "e186": {
+   "family": "reflex",
+   "thickness_ratio": 0.1027,
+   "why": "Eppler reflex section",
+   "series": "Reflex (tailless)"
+  },
+  "naca0012": {
+   "family": "conventional",
+   "thickness_ratio": 0.12,
+   "why": "Symmetric 12 % reference section: no camber, zero pitching moment",
+   "series": "NACA 4-digit"
+  },
+  "naca2412": {
+   "family": "conventional",
+   "thickness_ratio": 0.12,
+   "why": "2 % camber, 12 % thick: the general-aviation standard",
+   "series": "NACA 4-digit"
+  },
+  "naca2415": {
+   "family": "conventional",
+   "thickness_ratio": 0.1501,
+   "why": "As 2412 but 15 % thick: deeper spar, gentler stall",
+   "series": "NACA 4-digit"
+  },
+  "naca4415": {
+   "family": "conventional",
+   "thickness_ratio": 0.1502,
+   "why": "4 % camber, 15 % thick: more lift, deeper spar",
+   "series": "NACA 4-digit"
+  },
+  "naca4418": {
+   "family": "conventional",
+   "thickness_ratio": 0.1802,
+   "why": "4 % camber, 18 % thick: very deep spar, high lift, more drag",
+   "series": "NACA 4-digit"
+  },
+  "naca6412": {
+   "family": "conventional",
+   "thickness_ratio": 0.1204,
+   "why": "6 % camber: high lift at low speed, strong nose-down moment",
+   "series": "NACA 4-digit"
+  },
+  "naca23012": {
+   "family": "conventional",
+   "thickness_ratio": 0.12,
+   "why": "5-digit: forward camber, small pitching moment, high maximum lift, abrupt stall",
+   "series": "NACA 5-digit"
+  },
+  "naca23015": {
+   "family": "conventional",
+   "thickness_ratio": 0.15,
+   "why": "5-digit, 15 % thick",
+   "series": "NACA 5-digit"
+  },
+  "naca23018": {
+   "family": "conventional",
+   "thickness_ratio": 0.18,
+   "why": "5-digit, 18 % thick",
+   "series": "NACA 5-digit"
+  },
+  "naca632615": {
+   "family": "conventional",
+   "thickness_ratio": 0.15,
+   "why": "6-series laminar-flow section 63(2)-615: low drag in a lift bucket",
+   "series": "NACA 6-series"
+  },
+  "naca642415": {
+   "family": "conventional",
+   "thickness_ratio": 0.1501,
+   "why": "6-series laminar-flow section 64(2)-415",
+   "series": "NACA 6-series"
+  },
+  "naca652415": {
+   "family": "conventional",
+   "thickness_ratio": 0.1499,
+   "why": "6-series laminar-flow section 65(2)-415: widest laminar bucket",
+   "series": "NACA 6-series"
+  },
+  "naca643418": {
+   "family": "conventional",
+   "thickness_ratio": 0.18,
+   "why": "6-series 64(3)-418: thick laminar section",
+   "series": "NACA 6-series"
+  },
+  "naca64a410": {
+   "family": "conventional",
+   "thickness_ratio": 0.1,
+   "why": "6-series 64A410: straight-sided aft part, easy to build",
+   "series": "NACA 6-series"
+  },
+  "naca0008": {
+   "family": "tail",
+   "thickness_ratio": 0.08,
+   "why": "Symmetric 8 % tail section: thin, low drag, low maximum lift",
+   "series": "NACA 4-digit"
+  },
+  "naca0009": {
+   "family": "tail",
+   "thickness_ratio": 0.09,
+   "why": "Symmetric 9 % tail section: the classic small-aircraft tail",
+   "series": "NACA 4-digit"
+  },
+  "naca0010": {
+   "family": "tail",
+   "thickness_ratio": 0.1,
+   "why": "Symmetric 10 % tail section: room for a stiffer spar and hinge line",
+   "series": "NACA 4-digit"
+  },
+  "ht08": {
+   "family": "tail",
+   "thickness_ratio": 0.05,
+   "why": "Drela HT08 (5 % thick) tail section for low Reynolds number (sailplane tails)",
+   "series": "Other (UIUC database)"
+  },
+  "ht12": {
+   "family": "tail",
+   "thickness_ratio": 0.0502,
+   "why": "Drela HT12 (5 % thick) tail section, rounder nose than HT08",
+   "series": "Other (UIUC database)"
+  },
+  "ht13": {
+   "family": "tail",
+   "thickness_ratio": 0.065,
+   "why": "Drela HT13 (6.5 % thick) tail section for low Reynolds number",
+   "series": "Other (UIUC database)"
+  },
+  "ht14": {
+   "family": "tail",
+   "thickness_ratio": 0.0749,
+   "why": "Drela HT14 (7.5 % thick) tail section for low Reynolds number",
+   "series": "Other (UIUC database)"
+  },
+  "sd8020": {
+   "family": "tail",
+   "thickness_ratio": 0.1011,
+   "why": "Selig-Donovan SD8020 (10 % thick) symmetric low-Reynolds section; measured polars exist (UIUC)",
+   "series": "Other (UIUC database)"
+  }
+ }
+}

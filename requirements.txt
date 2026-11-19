@@ -1,0 +1,8 @@
+# HORYZN wing aerodynamics lab - packages for Streamlit Community Cloud (Linux, Python 3.12)
+# Same versions as the Windows PC (the configurator's environment, resolved 2026-11-11). pandas, pyarrow and the rest come with streamlit.
+numpy==2.5.4
+scipy==1.18.1
+neuralfoil==0.3.3
+aerosandbox==4.2.10
+streamlit==1.67.0
+plotly==7.1.0
