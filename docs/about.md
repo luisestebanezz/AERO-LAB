@@ -33,6 +33,11 @@ limits and safety factor as the optimiser: the **free range of every input** (ho
 tested option by option for airfoils and choices; a **slice** chart per input; a **3D surface** of any two inputs, with the designs that break a limit as a wall; and the **combinations** that can move together when a limit
 is active (the free combinations, sloppiest first, and how far each can move). A button turns the free and loose inputs into ranges and the tight ones into values, so that the next optimisation moves only what can move.
 
+**PDF report.** The *PDF report* button (Results and Optimise pages) writes a document of one design to keep or send: the design in numbers, **how every number was calculated** (flight condition and weight,
+geometry, lift, drag, stall and speed margin, pitching moment, control and loads, performance, the safety factor, the limits at every flight point; each with its formula and the numbers put in), the drawing of the wing
+with the fuselage and of its airfoils, the charts, and the inputs. For an optimised design it adds how the optimum was found (objectives, what changed, every flight point) and, if you mapped them on the Valleys page,
+the valleys around it. It compares with the starting design in the charts and is written on the PC and online alike.
+
 **What it does not do.** No tail, propeller, nacelles, camera or other installation effects; no compressibility; no post-stall redistribution beyond what the section
 tables give (a swept wing's tip-stall pitch-up is therefore only partly captured); steady, planar, symmetric flight. The flap and aileron models are thin-airfoil
 theory with viscous factors and are the least certain part. With no wind-tunnel or flight data, treat the absolute drag and the stall speed as ±10 %: look at the

@@ -544,7 +544,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
         "With no wind-tunnel or flight data, treat the absolute drag and the stall speed as ±10 %: compare designs with each other and use the safety factor. NeuralFoil is optimistic at low Reynolds number, "
         "which the calibration factors on drag and maximum lift (inputs, Section physics) correct.",
         "Flaps and ailerons are thin-airfoil theory with viscous factors: the least certain part of the model. The pitching moment after the stall (a swept wing's tip-stall pitch-up) is only partly captured.",
-        "Steady, planar, symmetric, incompressible flow. The lifting line is described in docs/physics-lab.md of the lab; the checks against a hand calculation and a sweep of random designs are in its results note."]
+        "Steady, planar, symmetric, incompressible flow. The equations, the checks against a hand calculation and a sweep of random designs, and the limits of the model are in the lab's physics document."]
     flow += [Paragraph(_esc(t), st["body"]) for t in notes]
     flow += [Paragraph("Appendix: every input of this design", st["h1"])]
     grp = None
