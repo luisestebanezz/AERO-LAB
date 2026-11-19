@@ -49,5 +49,5 @@ This copy runs on a free shared server (Streamlit Community Cloud), not on a PC.
   **Load inputs (JSON)** to come back.
 - **The server is small and shared.** A search of many inputs with three flight points takes minutes, and other visitors share the same processor. Use the **quick** effort,
   switch flight points off (Optimise page, *Cruise only*) or give fewer inputs as ranges. The thorough effort is not offered here.
-- **The server sleeps** after a day or so without visitors; the first visitor waits about a minute while it wakes up.
+- **The server sleeps** after about 12 hours without visitors (Streamlit's rule at the time of writing); the first visitor waits about a minute while it wakes up.
 - The button that loads the wing of the scout configurator does nothing here (that file lives on the PC).
