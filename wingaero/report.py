@@ -329,7 +329,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.lib.utils import ImageReader
-    from reportlab.platypus import Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import CondPageBreak, Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     from .optimise import OBJECTIVES
     from .points import point_list
 
@@ -537,7 +537,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
             drow = [(str(k + 1), d["text"], f"{100 * d['r_plus']:.0f} %", d["why_plus"], f"{100 * d['r_minus']:.0f} %", d["why_minus"]) for k, d in enumerate(cv["directions"])]
             flow += [table(drow, [W_TEXT * x for x in (0.04, 0.38, 0.08, 0.18, 0.08, 0.24)], ["#", "made of", "can move +", "ended by", "can move −", "ended by"]), Spacer(1, 4)]
     # ---------------------------------------------------------------- notes and inputs
-    flow += [PageBreak(), Paragraph("Notes on the model", st["h1"])]
+    flow += [CondPageBreak(75 * mm), Paragraph("Notes on the model", st["h1"])]
     notes = [
         "The wing is a non-linear lifting line (Weissinger vortex lattice) over strips; each strip has the lift, drag and moment of its airfoil at its own Reynolds number, taken from NeuralFoil (a neural-network model of XFOIL) "
         "and followed past the stall. The tail, propeller and other installation effects are not modelled; the fuselage enters only through its drag and the induced-drag factor.",
