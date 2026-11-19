@@ -6,6 +6,7 @@ Tables are drawn as HTML because the 'pyarrow' library is blocked by a Windows s
 from __future__ import annotations
 
 import csv
+import datetime
 import html
 import io
 import json
@@ -25,6 +26,7 @@ from wingaero import figures as FG  # noqa: E402
 from wingaero.analysis import Case, safety_factors, with_safety  # noqa: E402
 from wingaero.geometry import wing_area  # noqa: E402
 from wingaero import explore as EX  # noqa: E402
+from wingaero import report as RP  # noqa: E402
 from wingaero import valleys as VL  # noqa: E402
 from wingaero.optimise import OBJECTIVES, Problem, free_variables, metrics_sf, optimise  # noqa: E402
 from wingaero.points import CRUISE, STANDARD_POINTS, FlightPoint, cases_for, from_dicts, point_list, to_dicts  # noqa: E402
@@ -738,6 +740,62 @@ def results_cases() -> list[tuple[str, Case]]:
     return cases
 
 
+PDF_LABELS = {"current inputs": "Current inputs", "optimised": "Optimised design", "picked design": "Design picked in Explore"}
+
+
+def build_pdf(which: str) -> tuple[bytes, str]:
+    """The PDF report of one design of the Results page (and, for the optimised design, of the optimisation and the valleys around it)."""
+    ss = st.session_state
+    cases = dict(results_cases())
+    case = cases[which]
+    opt = ss.get("opt") if which == "optimised" else None
+    points, start, valley = points_now(), None, None
+    if opt is not None:
+        points = opt.points or points
+        start = ("Starting design", case_of(opt.problem.p0, "starting design")) if opt.problem is not None else ("Current inputs", cases["current inputs"])
+        vl = ss.get("valley")
+        if vl is not None and vl.get("prob") is opt.problem:
+            valley = vl
+    elif which != "current inputs":
+        start = ("Current inputs", cases["current inputs"])
+    pdf = RP.build_report((PDF_LABELS[which], case), start=start, points=points, opt=opt, valley=valley)
+    return pdf, f"HORYZN_wing-report_{PDF_LABELS[which].lower().replace(' ', '-')}_{datetime.date.today():%Y-%m-%d}.pdf"
+
+
+def pdf_signature(which: str) -> str:
+    """What the PDF was made from: if it changes, the prepared PDF is out of date."""
+    ss = st.session_state
+    case = dict(results_cases())[which]
+    opt = ss.get("opt") if which == "optimised" else None
+    vl = ss.get("valley") if opt is not None else None
+    return json.dumps([which, case.p, id(opt), id(vl.get("rep")) if vl else None, [p.label() for p in points_now()]], sort_keys=True, default=str)
+
+
+def pdf_section(key: str) -> None:
+    """A button that writes the PDF report of a design, and the button that downloads it."""
+    ss = st.session_state
+    names = [n_ for n_, _ in results_cases()]
+    heading("PDF report")
+    note("A document to keep or send: the design, <b>how every number was calculated</b> (flight condition, geometry, lift, drag, stall, pitching moment, control, loads), the drawings "
+         "of the wing and its airfoils, and the charts. For the optimised design it also tells how the optimum was found and, if you mapped them, the valleys around it.")
+    c1, c2, c3 = st.columns([1.6, 1.3, 1.5])
+    which = c1.selectbox("Design to report", names, index=names.index("optimised") if "optimised" in names else 0, format_func=lambda k: PDF_LABELS.get(k, k), key=f"pdf_which_{key}")
+    if c2.button("Prepare the PDF report", type="primary", key=f"pdf_make_{key}"):
+        with st.spinner("Writing the report: calculations, drawings and charts (about 15 seconds)…"):
+            try:
+                data, name = build_pdf(which)
+                ss["pdf"] = {"which": which, "bytes": data, "name": name, "sig": pdf_signature(which)}
+            except Exception as exc:  # noqa: BLE001
+                ss["pdf"] = None
+                st.markdown(f"<div class='hz-bad'>The report could not be written: {html.escape(str(exc))}</div>", unsafe_allow_html=True)
+    pdf = ss.get("pdf")
+    if pdf and pdf["which"] == which:
+        if pdf["sig"] == pdf_signature(which):
+            c3.download_button(f"Download the PDF ({len(pdf['bytes']) / 1e6:.1f} MB)", pdf["bytes"], file_name=pdf["name"], mime="application/pdf", key=f"pdf_dl_{key}")
+        else:
+            c3.markdown("<span class='hz-note'>The inputs changed since the report was written: prepare it again.</span>", unsafe_allow_html=True)
+
+
 def page_results() -> None:
     all_cases = results_cases()
     names = [n for n, _ in all_cases]
@@ -750,6 +808,7 @@ def page_results() -> None:
     for lab, c in cases:
         for kind, msg in warnings_for(c, lab):
             st.markdown(f"<div class='{'hz-bad' if kind == 'bad' else 'hz-warn'}'>{html.escape(msg)}</div>", unsafe_allow_html=True)
+    pdf_section("res")
     ok = [(lab, c) for lab, c in cases if c.full().get("design_ok")]
     cols = st.columns(len(cases))
     for col, (lab, c) in zip(cols, cases):
@@ -947,6 +1006,7 @@ def page_optimise() -> None:
     c1, c2 = st.columns(2)
     c1.button("Apply the optimised values to the inputs", on_click=apply_optimised, help="Copies the optimised values into the Inputs page as values (the ranges are kept).")
     c2.markdown("<span class='hz-note'>The Results page shows the optimised wing next to your inputs: airfoils, top view and every chart. The Valleys page shows what can still move.</span>", unsafe_allow_html=True)
+    pdf_section("opt")
 
 
 def page_explore() -> None:
