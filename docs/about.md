@@ -36,7 +36,14 @@ is active (the free combinations, sloppiest first, and how far each can move). A
 **PDF report.** The *PDF report* button (Results and Optimise pages) writes a document of one design to keep or send: the design in numbers, **how every number was calculated** (flight condition and weight,
 geometry, lift, drag, stall and speed margin, pitching moment, control and loads, performance, the safety factor, the limits at every flight point; each with its formula and the numbers put in), the drawing of the wing
 with the fuselage and of its airfoils, the charts, and the inputs. For an optimised design it adds how the optimum was found (objectives, what changed, every flight point) and, if you mapped them on the Valleys page,
-the valleys around it. It compares with the starting design in the charts and is written on the PC and online alike.
+the valleys around it. It compares with the starting design in the charts and is written on the PC and online alike. Its first section is the **lift against the weight along the mission**: at every flight point the lift the wing
+generates (n × its weight), the most it could generate (q S CLmax, and with the safety factor), what share of the usable lift is in use, and a chart of the lift the wing can carry over speed with the mission points marked. The calculation
+sheet includes the lifting line **strip by strip**: the numbers of every strip at the design point and the sums that must reproduce the lift needed.
+
+**Excel workbook.** The *Excel workbook* button, next to the PDF one, writes the same design as a workbook to play with. *Inputs*: every input, with where it came from (blue: you gave it; orange: the optimiser searched it, with its range
+and starting value; grey: the lab's default). *Optimiser*: its objectives and weights, the inputs it could change and between which values, the flight points, the limits, the result at every point, the convergence. *Calculations*: inputs → formulas →
+results as **live Excel formulas** with names (`W_N = mass_kg * gravity`): change an input and they recalculate; values that come from the lifting line or the airfoil polars are in purple and stay as calculated. *Results*, *Mission lift* (lift against
+weight, a V–n diagram, sentences written by formula), *Strips*, *Curves*, *Wing and airfoils* and, if you mapped them, *Valleys*. Every sheet has its charts, as native Excel charts you can change.
 
 **What it does not do.** No tail, propeller, nacelles, camera or other installation effects; no compressibility; no post-stall redistribution beyond what the section
 tables give (a swept wing's tip-stall pitch-up is therefore only partly captured); steady, planar, symmetric flight. The flap and aileron models are thin-airfoil
