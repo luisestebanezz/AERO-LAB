@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import io
 import math
+import textwrap
 
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
@@ -562,4 +563,57 @@ def valley_slices(report, cols: int = 3) -> bytes | None:
         for k in range(len(vs), rows * cols):
             axes[k // cols][k % cols].axis("off")
         _note(fig, f"Loss of the weighted objective (%) against each input: green = free range, red = a limit is broken, dashed = the {report.tol_pct:g} % tolerance.")
+        return _png(fig)
+
+
+# ------------------------------------------------------------------------------------------------ lift against weight
+def lift_vs_weight(case, mission: list) -> bytes:
+    """The lift the wing can carry against its weight along the speed range (the stall boundary of a V-n diagram), with the points of the mission marked, and for every point
+    the lift it must generate against the maximum lift it has there."""
+    from matplotlib import rc_context
+    r = case.full()
+    m = r["metrics"]
+    W0, S = case.weight, case.wing.area
+    sfl = case.sf["lift"]
+    with rc_context(RC):
+        fig, (a, b) = _new(3.3, 1, 2, gridspec_kw={"width_ratios": [1.45, 1]})
+        vd = case.V
+        v_stall_sf = m.get("V_stall_mps", 0.0) * math.sqrt(sfl)
+        v = np.linspace(0.35 * min(vd, v_stall_sf or vd), max(2.0 * vd, 1.3 * v_stall_sf, 1.3 * max(q["V"] for q in mission)), 160)
+        if "CL_max_first" in m:
+            n_calc = 0.5 * case.air.density * v ** 2 * S * m["CL_max_first"] / W0
+            a.plot(v, n_calc, color=HZ["blue"], label="maximum lift ÷ weight, as calculated")
+            a.plot(v, n_calc / sfl, color=HZ["blue"], linestyle="--", label=f"with the safety factor ({sfl:.2f})")
+            ymax = max(3.2, 1.15 * max(float(np.interp(1.6 * vd, v, n_calc / sfl)), max((q["L"] / W0 for q in mission), default=1.0)))
+            a.fill_between(v, n_calc / sfl, ymax, color=HZ["red"], alpha=0.07, label="beyond the usable lift")
+            a.set_ylim(0, ymax)
+            vs, vs_sf = m["V_stall_mps"], m["V_stall_mps"] * math.sqrt(sfl)
+            for x, lab in ((vs, "stall"), (vs_sf, "stall with SF")):
+                a.axvline(x, color=HZ["steel"], linestyle=":", linewidth=1.0)
+                a.text(x, ymax * 0.97, f" {lab} {x:.1f} m/s", rotation=90, va="top", ha="right", fontsize=6.5, color=HZ["steel"])
+        a.axhline(1.0, color=HZ["navy"], linewidth=1.2)
+        a.text(v[-1], 1.0, "weight (lift = weight) ", ha="right", va="bottom", fontsize=7, color=HZ["navy"])
+        for i, q in enumerate(mission):
+            a.plot([q["V"]], [q["L"] / W0], marker="o", color=_col(i + 1), markersize=7, markeredgecolor="white", linestyle="none")
+            a.annotate(q["name"], (q["V"], q["L"] / W0), textcoords="offset points", xytext=(6, 5 + 4 * (i % 2)), fontsize=7, color=_col(i + 1))
+        a.set_xlabel("speed (m/s)")
+        a.set_ylabel("lift ÷ design weight (load factor)")
+        a.set_title("Lift the wing can carry against its weight")
+        a.legend(loc="lower right", frameon=False, fontsize=6.3)
+        have = [q for q in mission if "Lmax_sf" in q]
+        x = np.arange(len(have))
+        w = 0.36
+        b.bar(x - w / 2, [q["L"] for q in have], w, color=HZ["navy"], label="lift needed (n × weight)")
+        b.bar(x + w / 2, [q["Lmax_sf"] for q in have], w, color=HZ["blue"], alpha=0.75, label="maximum lift, with SF")
+        for xi, q in zip(x, have):
+            b.text(xi + w / 2, q["Lmax_sf"], f"{q['Lmax_sf'] / q['W']:.1f}×", ha="center", va="bottom", fontsize=6.5, color=HZ["blue"])
+            b.text(xi - w / 2, q["L"], f"{q['L'] / q['W']:.1f}×", ha="center", va="bottom", fontsize=6.5, color=HZ["navy"])
+        b.set_xticks(x)
+        b.set_xticklabels([textwrap.fill(q["name"], 11) for q in have], fontsize=6.5)
+        b.set_ylabel("lift (N); labels: × the weight")
+        b.set_title("At each point of the mission")
+        b.legend(loc="upper left", frameon=False, fontsize=6.3)
+        b.set_ylim(0, 1.25 * max([q["Lmax_sf"] for q in have] + [q["L"] for q in have] + [1.0]))        # room for the labels of the tallest bar (text is not clipped)
+        for ax in (a, b):
+            _style(ax)
         return _png(fig)

@@ -16,6 +16,7 @@ import os
 import numpy as np
 
 from . import airfoil as AF
+from . import mission as MS
 from . import report_figures as RF
 from .analysis import safety_factors, with_safety
 from .core import G0
@@ -296,6 +297,49 @@ def input_rows(case) -> list[tuple]:
     return rows
 
 
+def mission_tables(mp: list) -> tuple[list, list]:
+    """The lift against the weight at every flight point, as two tables of rows: what the wing generates, and the most it could generate."""
+    a, b = [], []
+    for d in mp:
+        a.append((d["label"], n(d["V"]), n(d["mass"]), n(d["W"]), n(d["n"], 3), n(d["L"]), n(d["L"] / d["W"], 3), n(d["CL_req"])))
+        if "CLmax" in d:
+            b.append((d["name"], n(d["CLmax"]), n(d["CLmax_sf"]), n(d["Lmax"]), n(d["Lmax_sf"]), n(d["nmax"], 3), n(d["nmax_sf"], 3), f"{100 * d['use']:.0f} %"))
+        else:
+            b.append((d["name"], "no stall found", "", "", "", "", "", ""))
+    return a, b
+
+
+def mission_sentences(mp: list) -> list[str]:
+    """One plain sentence per flight point: the lift generated against the weight, and how much more the wing could generate."""
+    out = []
+    for d in mp:
+        t = (f"<b>{_esc(d['label'])}:</b> at {n(d['V'], 3)} m/s the wing generates <b>{n(d['L'], 3)} N, {n(d['L'] / d['W'], 3)} times its weight</b> of {n(d['W'], 3)} N (it needs CL = {n(d['CL_req'], 3)}).")
+        if "CLmax" in d:
+            t += (f" It could generate up to {n(d['Lmax'], 3)} N ({n(d['nmax'], 3)} × weight) as calculated, and {n(d['Lmax_sf'], 3)} N ({n(d['nmax_sf'], 3)} × weight) with the safety factor: "
+                  f"it uses <b>{100 * d['use']:.0f} %</b> of the usable lift, with a stall speed of {n(d['V_stall_sf'], 3)} m/s (with the safety factor).")
+        out.append(t)
+    return out
+
+
+def strip_rows(case) -> tuple[list, list]:
+    """The strips of the right half-wing at the design point (the working of the lifting line) and the sums that must reproduce the lift needed."""
+    sd = MS.strip_data(case)
+    if sd is None:
+        return [], []
+    sf = case.sf["lift"]
+    rows = []
+    for j in range(len(sd["eta"])):
+        rows.append((str(j + 1), n(float(sd["eta"][j]), 3), n(float(sd["y"][j]), 3), n(float(sd["c"][j]) * 1000, 4), f"{float(sd['re'][j]) / 1e3:,.0f} k", n(float(sd["alpha_geo"][j]), 3), n(float(sd["alpha_ind"][j]), 3),
+                     n(float(sd["alpha_eff"][j]), 3), n(float(sd["cl"][j]), 3), n(float(sd["cap"][j]), 3), n(float(sd["cl_unc"][j] / sd["cap"][j] * sf), 3), n(float(sd["cd"][j]), 3), n(float(sd["lift"][j]), 3)))
+    m = case.full()["metrics"]
+    lift = 2 * float(sd["lift"].sum())
+    cl = 4 * float((sd["gamma"] * sd["dy"]).sum()) / sd["S"]
+    cdp = (1 + case.p["excrescence"]) * 2 * float((sd["w"] * sd["cd"]).sum())
+    sums = [("Lift of the wing = 2 Σ q c cl Δy", f"{n(lift)} N", f"n W = {n(case.n * case.weight)} N"), ("Lift coefficient = 4 Σ G Δy / S", n(cl), f"n W / (q S) = {n(m['CL_design'])}"),
+            ("Profile drag coefficient = (1 + excrescence) × 2 Σ (c Δy / S) cd", n(cdp), f"CDp of the calculation sheet = {n(m['CDp'])}")]
+    return rows, sums
+
+
 # ------------------------------------------------------------------------------------------------ the PDF
 def _styles():
     from reportlab.lib.styles import ParagraphStyle
@@ -431,8 +475,30 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
                 nm = lambda x: AF.display_name(x) if (var.kind == "airfoil" and x != AF.PARAM) else n(x)  # noqa: E731
                 rows.append((pr.label.strip(), "", nm(was), nm(now), f"{len(var.pool)} options"))
         flow += [table(rows, [W_TEXT * 0.44, W_TEXT * 0.08, W_TEXT * 0.14, W_TEXT * 0.14, W_TEXT * 0.20], ["Input searched", "Unit", "Starting point", "Optimised", "Searched between"]), Spacer(1, 4)]
+    # ---------------------------------------------------------------- lift against weight
+    mp = MS.mission_lift(case, points)
+    flow += [Paragraph("1  Lift against weight along the mission", st["h1"])]
+    d0 = mp[0]
+    if "CLmax" in d0:
+        flow += [Paragraph(
+            "In steady flight the wing generates exactly the lift that balances n times its weight, whatever the speed; what changes along the mission is how much more it <i>could</i> generate before it stalls. "
+            "The most lift is q S CLmax (q is the dynamic pressure, S the wing area, CLmax the maximum lift coefficient, where the first strip stalls); with the safety factor it is divided by "
+            f"{d0['SFL']:.2f}. Lift divided by weight is the load factor the wing could carry at that speed.", st["body"]),
+            cards([("Lift at the design point", f"{n(d0['L'], 3)} N = {n(d0['L'] / d0['W'], 3)} × weight"), ("Most lift there (with SF)", f"{n(d0['Lmax_sf'], 3)} N = {n(d0['nmax_sf'], 3)} × weight"),
+                   ("Lift in use (of the usable)", f"{100 * d0['use']:.0f} %"), ("Stall speed (with SF)", f"{n(d0['V_stall_sf'], 3)} m/s")]), Spacer(1, 6)]
+    ta, tb = mission_tables(mp)
+    flow += [Paragraph("What the wing generates at every flight point", st["h2"]),
+             table(ta, [W_TEXT * x for x in (0.31, 0.09, 0.08, 0.09, 0.06, 0.13, 0.12, 0.12)], ["Flight point", "speed (m/s)", "mass (kg)", "weight W = m g (N)", "n", "lift L = n W (N)", "lift ÷ weight", "CL needed"]), Spacer(1, 4)]
+    if "CLmax" in d0:
+        flow += [KeepTogether([Paragraph("The most it could generate", st["h2"]),
+                               table(tb, [W_TEXT * x for x in (0.20, 0.09, 0.11, 0.12, 0.13, 0.11, 0.12, 0.12)],
+                                     ["Flight point", "CLmax", "usable CLmax (÷ SF)", "most lift q S CLmax (N)", "… with the SF (N)", "most lift ÷ weight", "… with the SF", "share of the usable lift in use"])]), Spacer(1, 4)]
+    flow += [Paragraph(t, st["body"]) for t in mission_sentences(mp)]
+    if "CLmax" in d0:
+        flow += figure(RF.lift_vs_weight(case, mp), "Left: the most lift the wing can carry over speed, as a multiple of the design weight (solid: as calculated; dashed: with the safety factor; the line at 1 is lift = weight), "
+                       "with every flight point of the mission marked. Right: at each point, the lift needed (n × weight) against the most it could generate with the safety factor and the weight.")
     # ---------------------------------------------------------------- drawings
-    flow += [Paragraph("1  The wing and its airfoils", st["h1"])]
+    flow += [CondPageBreak(90 * mm), Paragraph("2  The wing and its airfoils", st["h1"])]
     flow += figure(RF.top_view(case), f"Top view of the design. Span {n(case.wing.span)} m, area {n(case.wing.area)} m², aspect ratio {n(case.wing.aspect_ratio, 3)}, mean aerodynamic chord {n(case.wing.mac * 1000)} mm, "
                    f"mean sweep {n(case.wing.mean_sweep_deg)}°. Orange bar: mean aerodynamic chord; diamond: aerodynamic centre of the wing alone; cross: moment reference point.")
     flow += [Paragraph("Wing at its stations", st["h2"]),
@@ -443,22 +509,35 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
              table(airfoil_table(case), [W_TEXT * x for x in (0.10, 0.06, 0.15, 0.08, 0.06, 0.07, 0.07, 0.08, 0.06, 0.07, 0.07, 0.06, 0.07)],
                    ["Station", "η", "Airfoil", "Re", "t/c %", "camber %", "cl max", "stall °", "cd min", "(cl/cd) max", "α₀ °", "cm₀", "confidence"], font="cell"), Spacer(1, 4)]
     # ---------------------------------------------------------------- calculations
-    flow += [PageBreak(), Paragraph("2  How the numbers were calculated", st["h1"]),
+    flow += [PageBreak(), Paragraph("3  How the numbers were calculated", st["h1"]),
              Paragraph("Each step gives the quantity, the formula, the numbers put into it and the result. The numbers are those of the lab's model: a non-linear lifting line over the strips of the wing, "
                        "the airfoil polars of NeuralFoil, and a safety factor applied last. Where a number comes out of the lifting line (a solve, not a closed formula) the formula column says what it is.", st["body"])]
     widths = [W_TEXT * x for x in (0.25, 0.30, 0.27, 0.18)]
     sections = calc_sections(case, points)
     for k, sec in enumerate(sections, 1):
-        block = [Paragraph(f"2.{k}  {sec.title}", st["h2"])]
+        block = [Paragraph(f"3.{k}  {sec.title}", st["h2"])]
         if sec.note:
             block.append(Paragraph(_esc(sec.note), st["small"]))
         flow += block + [table(sec.rows, widths, ["Quantity", "Formula", "With the numbers", "Result"]), Spacer(1, 5)]
-    flow += [Paragraph(f"2.{len(sections) + 1}  The safety factor", st["h2"]), Paragraph(
+    srows, ssums = strip_rows(case)
+    if srows:
+        flow += [Paragraph(f"3.{len(sections) + 1}  Inside the lifting line, strip by strip (at the design point)", st["h2"]), Paragraph(
+            "The wing is cut into 32 strips across the span (16 on each half; the table gives the right half, root to tip). Each strip has a chord c, a width Δy and a Reynolds number Re = ρ V c / μ, and the "
+            "airfoil polar of the strip is taken at that Re. The angle a strip is set at is α_geo (root angle + twist); the angle it actually sees is lower, α_eff = α_geo − α_ind, because the downwash of "
+            "the wing's own vortices comes on top. The strip carries cl(α_eff) from its polar, and its circulation is G = ½ c cl. The vortex lattice gives the downwash every strip's circulation puts on every "
+            "other strip, so the 32 values of G are the solution of 32 coupled equations, found by Newton's method at the root angle for which the lift is exactly n W. "
+            "Then: strip lift = q c cl Δy;  CL = 2 Σ G Δy / S;  CDp = (1 + excrescence) Σ (c Δy / S) cd;  CDi = −Σ G (T G) Δy / S. A strip is at its stall when cl reaches its cap "
+            "(utilisation 1); with the safety factor the utilisation is multiplied by SF_lift.", st["small"]),
+            table(srows, [W_TEXT * x for x in (0.045, 0.08, 0.075, 0.08, 0.07, 0.075, 0.075, 0.075, 0.065, 0.07, 0.095, 0.09, 0.085)],
+                  ["#", "η", "y (m)", "chord (mm)", "Re", "α_geo (°)", "α_ind (°)", "α_eff (°)", "cl", "cl cap", "utilisation × SF", "cd", "strip lift (N)"], font="cell"),
+            Spacer(1, 4), Paragraph("What the strips add up to", st["small"]),
+            table(ssums, [W_TEXT * x for x in (0.46, 0.22, 0.32)], ["Sum over the strips", "gives", "which must equal"]), Spacer(1, 5)]
+    flow += [Paragraph(f"3.{len(sections) + 2}  The safety factor", st["h2"]), Paragraph(
         f"The safety factor ({case.p['safety_factor']:.2f}, from 1 to 2) is applied last, in the adverse direction of every result: drag and power up, lift capability down, moments and loads up, control authority down. "
         f"Families switched off in the inputs use a factor of 1.", st["small"]),
         table(safety_rows(case), [W_TEXT * x for x in (0.40, 0.18, 0.18, 0.24)], ["Result", "As calculated", "With the safety factor", "Rule"]), Spacer(1, 5)]
     # ---------------------------------------------------------------- flight points and limits
-    flow += [Paragraph(f"2.{len(sections) + 2}  Flight points and limits", st["h2"])]
+    flow += [Paragraph(f"3.{len(sections) + 3}  Flight points and limits", st["h2"])]
     flow += [Paragraph("The same wing in each flight condition (speed, air, mass and load factor change, the wing does not). Every result carries the safety factor.", st["small"]),
              table(point_rows(case, points), [W_TEXT * x for x in (0.30, 0.09, 0.06, 0.09, 0.10, 0.12, 0.12, 0.12)], ["Flight point", "speed m/s", "n", "CL", "L/D (SF)", "stall speed (SF)", "speed margin (SF)", "strip utilisation (SF)"]), Spacer(1, 5)]
     lrows = limit_rows(case, points)
@@ -466,7 +545,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
         flow += [Paragraph("Limits the optimiser works to, checked on this design", st["small"]),
                  table(lrows, [W_TEXT * x for x in (0.26, 0.34, 0.14, 0.14, 0.12)], ["Flight point", "Limit", "Value", "Limit value", "Met"]), Spacer(1, 5)]
     # ---------------------------------------------------------------- charts
-    flow += [PageBreak(), Paragraph("3  Charts", st["h1"])]
+    flow += [PageBreak(), Paragraph("4  Charts", st["h1"])]
     flow += figure(RF.lift_polar(cases), "Wing lift curve, drag polar and lift-to-drag. The design is solid blue" + (", the starting design orange." if start else "."))
     flow += figure(RF.drag_breakdown(case), "Where the drag comes from at each lift coefficient, and its shares at the design point.")
     flow += figure(RF.moment(cases), "Pitching moment of the wing alone about the reference point and about the aerodynamic centre. A rising Cm against CL is destabilising about that point; the tail is not modelled.")
@@ -482,7 +561,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
     flow += figure(RF.airfoil_sections(case), "Section data of every airfoil station at its Reynolds number at the design speed.")
     # ---------------------------------------------------------------- optimiser
     if opt is not None:
-        flow += [PageBreak(), Paragraph("4  How the optimum was found", st["h1"])]
+        flow += [PageBreak(), Paragraph("5  How the optimum was found", st["h1"])]
         wt = ", ".join(f"{OBJECTIVES[k][0].lower()} (weight {w:g})" for k, w in opt.weights.items())
         flow += [Paragraph(f"The optimiser (differential evolution) searched {len(opt.variables)} inputs. Objective: {_esc(wt)}; each normalised by its value for the starting design and combined with the "
                            f"flight-point weights. It evaluated {opt.n_evals:,} candidate designs in {opt.seconds:.0f} s and "
@@ -505,7 +584,7 @@ def build_report(design: tuple, start: tuple | None = None, points=None, opt=Non
     # ---------------------------------------------------------------- valleys
     if valley is not None:
         rep = valley["rep"]
-        sec = "5" if opt is not None else "4"
+        sec = "6" if opt is not None else "5"
         flow += [PageBreak(), Paragraph(f"{sec}  What can move: the valleys around the design", st["h1"]),
                  Paragraph(f"Around the design the weighted objective forms a valley. The <b>free range</b> of an input is how far it can move, with every other input held, before the objective loses "
                            f"{rep.tol_pct:g} % of its starting value, a limit is broken, or the range the input allows ends. Centre: {_esc(valley.get('label', ''))}.", st["body"])]

@@ -743,11 +743,11 @@ def results_cases() -> list[tuple[str, Case]]:
 PDF_LABELS = {"current inputs": "Current inputs", "optimised": "Optimised design", "picked design": "Design picked in Explore"}
 
 
-def build_pdf(which: str) -> tuple[bytes, str]:
-    """The PDF report of one design of the Results page (and, for the optimised design, of the optimisation and the valleys around it)."""
+def report_parts(which: str) -> dict:
+    """What a report (PDF or Excel) of one design of the Results page is made from: the design, the design to compare with, the flight points, the optimisation it
+    came from, the valleys around it and the state of every input (for a design that is not an optimum)."""
     ss = st.session_state
     cases = dict(results_cases())
-    case = cases[which]
     opt = ss.get("opt") if which == "optimised" else None
     points, start, valley = points_now(), None, None
     if opt is not None:
@@ -758,8 +758,23 @@ def build_pdf(which: str) -> tuple[bytes, str]:
             valley = vl
     elif which != "current inputs":
         start = ("Current inputs", cases["current inputs"])
-    pdf = RP.build_report((PDF_LABELS[which], case), start=start, points=points, opt=opt, valley=valley)
+    return {"design": (PDF_LABELS[which], cases[which]), "start": start, "points": points, "opt": opt, "valley": valley, "fixed": current()[1] if which == "current inputs" else None}
+
+
+def build_pdf(which: str) -> tuple[bytes, str]:
+    """The PDF report of one design of the Results page (and, for the optimised design, of the optimisation and the valleys around it)."""
+    parts = report_parts(which)
+    pdf = RP.build_report(parts["design"], start=parts["start"], points=parts["points"], opt=parts["opt"], valley=parts["valley"])
     return pdf, f"HORYZN_wing-report_{PDF_LABELS[which].lower().replace(' ', '-')}_{datetime.date.today():%Y-%m-%d}.pdf"
+
+
+def build_xlsx(which: str) -> tuple[bytes, str]:
+    """The Excel workbook of one design: inputs (and where each came from), the optimiser's setup, the calculations as live formulas, the results, the lift against
+    the weight, the strips, the curves and the drawings, with native Excel charts."""
+    from wingaero import excel as XL
+    parts = report_parts(which)
+    data = XL.build_workbook(parts["design"], start=parts["start"], points=parts["points"], opt=parts["opt"], valley=parts["valley"], fixed=parts["fixed"])
+    return data, f"HORYZN_wing-workbook_{PDF_LABELS[which].lower().replace(' ', '-')}_{datetime.date.today():%Y-%m-%d}.xlsx"
 
 
 def pdf_signature(which: str) -> str:
@@ -772,28 +787,37 @@ def pdf_signature(which: str) -> str:
 
 
 def pdf_section(key: str) -> None:
-    """A button that writes the PDF report of a design, and the button that downloads it."""
+    """The buttons that write the PDF report and the Excel workbook of a design, and the buttons that download them."""
     ss = st.session_state
     names = [n_ for n_, _ in results_cases()]
-    heading("PDF report")
-    note("A document to keep or send: the design, <b>how every number was calculated</b> (flight condition, geometry, lift, drag, stall, pitching moment, control, loads), the drawings "
-         "of the wing and its airfoils, and the charts. For the optimised design it also tells how the optimum was found and, if you mapped them, the valleys around it.")
+    heading("Reports: PDF and Excel")
+    note("<b>PDF report</b>: a document to keep or send: the design, <b>how every number was calculated</b> (flight condition, geometry, lift, drag, stall, pitching moment, control, loads), "
+         "the <b>lift against the weight along the mission</b>, the drawings of the wing and its airfoils, and the charts. For the optimised design it also tells how the optimum was found and, if "
+         "you mapped them, the valleys around it.<br><b>Excel workbook</b>: the same design to play with: sheets for the inputs (which are yours, which the optimiser searched, which are the lab's "
+         "defaults), the optimiser's setup, the calculations as <b>live formulas</b>, the results, the lift against the weight, the strip-by-strip lifting line, the curves and the drawings, each with its "
+         "charts as native Excel charts.")
     c1, c2, c3 = st.columns([1.6, 1.3, 1.5])
     which = c1.selectbox("Design to report", names, index=names.index("optimised") if "optimised" in names else 0, format_func=lambda k: PDF_LABELS.get(k, k), key=f"pdf_which_{key}")
-    if c2.button("Prepare the PDF report", type="primary", key=f"pdf_make_{key}"):
-        with st.spinner("Writing the report: calculations, drawings and charts (about 15 seconds)…"):
-            try:
-                data, name = build_pdf(which)
-                ss["pdf"] = {"which": which, "bytes": data, "name": name, "sig": pdf_signature(which)}
-            except Exception as exc:  # noqa: BLE001
-                ss["pdf"] = None
-                st.markdown(f"<div class='hz-bad'>The report could not be written: {html.escape(str(exc))}</div>", unsafe_allow_html=True)
-    pdf = ss.get("pdf")
-    if pdf and pdf["which"] == which:
-        if pdf["sig"] == pdf_signature(which):
-            c3.download_button(f"Download the PDF ({len(pdf['bytes']) / 1e6:.1f} MB)", pdf["bytes"], file_name=pdf["name"], mime="application/pdf", key=f"pdf_dl_{key}")
-        else:
-            c3.markdown("<span class='hz-note'>The inputs changed since the report was written: prepare it again.</span>", unsafe_allow_html=True)
+    d1, d2, d3 = st.columns([1.6, 1.3, 1.5])
+    for slot, store, label, spinner, make, mime, mark, sig in (
+            (c2, "pdf", "Prepare the PDF report", "Writing the report: calculations, drawings and charts (about 15 seconds)…", build_pdf, "application/pdf", "pdf", pdf_signature),
+            (c3, "xlsx", "Prepare the Excel workbook", "Writing the workbook: formulas, tables and charts (a few seconds)…", build_xlsx,
+             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xls", pdf_signature)):
+        if slot.button(label, type="primary", key=f"{mark}_make_{key}"):
+            with st.spinner(spinner):
+                try:
+                    data, name = make(which)
+                    ss[store] = {"which": which, "bytes": data, "name": name, "sig": sig(which)}
+                except Exception as exc:  # noqa: BLE001
+                    ss[store] = None
+                    st.markdown(f"<div class='hz-bad'>The {'report' if store == 'pdf' else 'workbook'} could not be written: {html.escape(str(exc))}</div>", unsafe_allow_html=True)
+        got = ss.get(store)
+        target = d2 if store == "pdf" else d3
+        if got and got["which"] == which:
+            if got["sig"] == sig(which):
+                target.download_button(f"Download the {'PDF' if store == 'pdf' else 'Excel'} ({len(got['bytes']) / 1e6:.1f} MB)", got["bytes"], file_name=got["name"], mime=mime, key=f"{mark}_dl_{key}")
+            else:
+                target.markdown("<span class='hz-note'>The inputs changed since it was written: prepare it again.</span>", unsafe_allow_html=True)
 
 
 def page_results() -> None:

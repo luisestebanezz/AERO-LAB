@@ -1,6 +1,7 @@
 # HORYZN wing aerodynamics lab - packages for Streamlit Community Cloud (Linux, Python 3.12)
 # Same versions as the Windows PC (the configurator's environment, resolved 2026-11-11). pandas, pyarrow and the rest come with streamlit.
 # matplotlib and reportlab write the PDF report (charts and text); matplotlib's DejaVu fonts carry the Greek letters of the equations.
+# xlsxwriter writes the Excel workbook (formulas and native charts); it is a small pure-Python package.
 numpy==2.5.4
 scipy==1.18.1
 neuralfoil==0.3.3
@@ -9,3 +10,4 @@ streamlit==1.67.0
 plotly==7.1.0
 matplotlib==3.11.2
 reportlab==5.1.0
+xlsxwriter==3.3.2
